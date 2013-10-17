@@ -77,10 +77,10 @@ In your web page:
 ```
 
 ## Documentation
-_(Coming soon)_
+Sorry nothing yet.
+Meanwhile, take a look at the websql_test.js in the test directory
+you may skip directly to the first "asyncTest" section for the interesting stuff.
 
-## Examples
-_(Coming soon)_
 
 ## Release History
 17 oct 2013 : version 0.1.0 (initial release)
