@@ -1,0 +1,26 @@
+{
+  "name": "websql",
+  "title": "Websql",
+  "description": "Websql",
+  "version": "0.1.0",
+  "homepage": "https://github.com/yelouafi/websql.js",
+  "author": {
+    "name": "Elouafi Yassine",
+    "email": "yelouafi@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/yelouafi/websql.js.git"
+  },
+  "bugs": "https://github.com/yelouafi/websql.js/issues",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/yelouafi/websql.js/blob/master/LICENSE-MIT"
+    }
+  ],
+  "dependencies": {
+    "jquery": "*"
+  },
+  "keywords": []
+}
