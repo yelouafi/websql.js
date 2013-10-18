@@ -2,7 +2,9 @@
 
 websql.js is a tiny library easing developpement with Websql databases.
 
-work was based upon the massivejs library. massivejs is a nodejs module and provides an intuitive interface over raw Mysql and Postgre modules.
+work was based upon the [massive-js][massive] library. massivejs is a nodejs module and provides an intuitive interface over raw Mysql and Postgre modules.
+
+[massive]: https://github.com/robconery/massive-js
 
 basically, websql.js intends to brings the same interface into websql supported browsers (webkit based). but actually it provides some enhancements, so instead of writing something like
 

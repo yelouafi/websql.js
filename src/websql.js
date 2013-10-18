@@ -9,6 +9,13 @@ var utils = utils || {};
 		this.dbType = "SQLite";
 		this.tables = [];
 		var regexIso8601 = /^(\d{4}|\+\d{6})(?:-(\d{2})(?:-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})\.(\d{1,3})(?:Z|([\-+])(\d{2}):(\d{2}))?)?)?)?$/;
+		this.cs = { 
+			//sql types
+			pk: 'pk', text: 'text', integer: 'integer', numeric: 'numeric', date: 'date', bool: 'boolean', 
+			//query types
+			rowset: 'rowset', row: 'row', scalar: 'scalar', nonQuery: 'non-query', insert: 'insert', any: 'any'
+			};
+		
 		
 		this.client = openDatabase(db, version || "1.0", desc || db, size || (2 * 1024 * 1024));
 		
@@ -44,7 +51,28 @@ var utils = utils || {};
 			}
 			return p;
 		};
+		
+		self.inferQueryType = function(sql) {
+			var mysql = sql.toLowerCase();
+			if(mysql.indexOf('insert') === 0) {
+				return self.cs.insert;
+			}
+			
+			if(mysql.indexOf('select') === 0) {
+				if(mysql.indexOf('limit(1)') > 0) {
+					return self.cs.row;
+				}
 				
+				return self.cs.rowset;
+			}
+			
+			if(mysql.indexOf('update') === 0 || mysql.indexOf('delete') === 0) { 
+				return self.cs.nonQuery;
+			}
+			
+			return self.cs.any;
+		};
+		
 		this.processRow = function (row) {
 			var obj = {};
 			for (var key in row) {
@@ -59,6 +87,41 @@ var utils = utils || {};
 			}
 			return obj;
 		};	
+		
+		self.processResultType = function(results, type) {
+			switch (type) {
+				case self.cs.any:
+					return results;
+				case self.cs.insert:
+					return results.insertId;
+				case self.cs.rowset:
+					var len = results.rows.length, i;                    
+					var rows = [];                    
+					for (i = 0; i < len; i++) {
+						var item = self.processRow(results.rows.item(i));
+						rows.push(item);
+					}  
+					return rows;
+				case self.cs.row:
+					if(results.rows.length) {
+						return self.processRow(results.rows.item(0));
+					}
+					return null;
+				case self.cs.scalar: 
+					if(results.rows.length) {
+						var obj = self.processRow(results.rows.item(0));
+						for(var key in obj) {
+							return obj[key];
+						}
+					}
+					return null;
+				case self.cs.nonQuery:
+					return results.rowsAffected;
+				default:
+					return results;
+			}
+			
+		};
 		
 		var _translateType = function (typeName) {
 			var _result = typeName;
@@ -94,25 +157,7 @@ var utils = utils || {};
 		
 		var successWrapper = function (d) {
 			return function (tx, results) {
-				var ret;
-				if(d.sql.indexOf("insert") === 0) {
-					ret = results.insertId;
-				} else if(d.sql.indexOf("select") === 0) {
-					var len = results.rows.length, i;                    
-					ret = [];                    
-					for (i = 0; i < len; i++) {
-						var row = self.processRow(results.rows.item(i));
-						ret.push(row);
-					}  
-					if(d.sql.indexOf("select count(1)") === 0) {
-						ret = ret[0]["COUNT(1)"];
-					} else if(d.sql.indexOf("limit(1)") > 0) {
-						ret = ret[0];
-					}
-				} else {
-					ret = results.rowsAffected;
-				}
-								
+				var ret = self.processResultType(results, d.queryType);
 				d.resolve(ret, tx);
 			};
 		};
@@ -123,24 +168,15 @@ var utils = utils || {};
 				d.reject(error);
 				return true;
 			};
-		};			
+		};		
 		
-		self.exec = function () {
-			var tx, sql, params;
-			if(utils.isString(arguments[0])) {
-				tx = null;
-				sql = arguments[0];
-				params = arguments[1];   
-			} else {
-				tx = arguments[0];
-				sql = arguments[1];
-				params = arguments[2];   
-			}
+		this._exec = function(sql, params, tx, queryType) {
 			var sp = params ? params.join(", ") : "" ;
 			self.log("exec : " + sql + " : [" + sp  + "]");
 			return $.Deferred(function (d) {           
 				var _args = params ? params.map(self.typeToDb) : params;
-				d.sql = sql.toLowerCase();
+				d.sql = sql;
+				d.queryType = queryType || self.cs.any;
 				if(tx) {                
 					tx.executeSql(sql, _args, successWrapper(d), failureWrapper(d));
 				} else {
@@ -148,11 +184,32 @@ var utils = utils || {};
 						tx1.executeSql(sql, _args, successWrapper(d), failureWrapper(d));
 					});
 				}
-			});                
+			});
 		};
 		
-		this.getQuery = function (sql, params) {
-			return new websql.Query(sql, params, new websql.Table('', '', self));
+		self.query = function(sql, params, tx) {
+			return self._exec(sql, params, tx, self.cs.rowset);
+		};
+		
+		self.queryOne = function(sql, params, tx) {
+			return self._exec(sql, params, tx, self.cs.row);
+		};
+		
+		self.scalar = function(sql, params, tx) {
+			return self._exec(sql, params, tx, self.cs.scalar);
+		};
+		
+		self.execNonQuery = function(sql, params, tx) {
+			return self._exec(sql, params, tx, self.cs.nonQuery);
+		};
+		
+		self.exec = function (sql, params, tx, queryType) {
+			var qt = queryType || self.inferQueryType(sql);
+			return self._exec(sql, params, tx, qt); 
+		};
+		
+		this.getQuery = function (sql, params, queryType) {
+			return new websql.Query(sql, params, new websql.Table('', '', self), queryType);
 		};
 		
 		this.fnRunQuery = function(qry) {
@@ -174,16 +231,16 @@ var utils = utils || {};
 			var table = new websql.Table('', '', self);
 			var queries = sqls.map(function(sql) {
 				if(Array.isArray(sql)) {
-					return new websql.Query( sql[0], sql.slice(1), table );
+					return new websql.Query( sql[0], sql.slice(1), table, self.cs.any );
 				} else {
-					return new websql.Query( sql.toString(), [], table );
+					return new websql.Query( sql.toString(), [], table, table, self.cs.any );
 				}
 			});
 			return self.runQueries( queries, tx );			
 		};
 		
 		this.dropTable = function (tableName) {
-			return new websql.Query("DROP TABLE IF EXISTS " + tableName, [], new websql.Table(tableName, "", self));
+			return new websql.Query("DROP TABLE IF EXISTS " + tableName, [], new websql.Table(tableName, "", self), self.cs.any);
 		};	
 		
 		var _createColumn = function (columnName, columnProps) {        
@@ -212,11 +269,11 @@ var utils = utils || {};
 
 
 			_sql += _cols.join(", ") + ")";
-			return new websql.Query(_sql, [], new websql.Table(tableName, "id", self));		
+			return new websql.Query(_sql, [], new websql.Table(tableName, "id", self), self.cs.any);		
 		};
 		
 		this.createColumn = function(tableName, columnName, columnProps) {		
-			return new websql.Query("ALTER TABLE " + tableName + " ADD COLUMN " + _createColumn( columnName, columnProps ), [], new websql.Table(tableName, "", self));
+			return new websql.Query("ALTER TABLE " + tableName + " ADD COLUMN " + _createColumn( columnName, columnProps ), [], new websql.Table(tableName, "", self), self.cs.any);
 		};
 		
 		this.createModelsTable = function() {
@@ -286,7 +343,7 @@ var utils = utils || {};
 		
 	};
 	
-	websql.Query = function(sql, params, table) {
+	websql.Query = function(sql, params, table, queryType) {
 	
 		var operationsMap = {
 			'=': '=',
@@ -304,6 +361,7 @@ var utils = utils || {};
 		self.params = params || [];
 		self.table = table;
 		self.db = table.db;
+		self.queryType = queryType;
 		
 		
 		self.append = function (sql) {
@@ -402,9 +460,36 @@ var utils = utils || {};
 			return self.parseArgs(arguments);			
 		};
 		
-		this.run = function(tx) {
-			return self.db.exec(tx, self.sql, self.params);
+		this.run = function(tx, queryType) {
+			var qt = queryType || self.queryType || self.db.cs.any;
+			return self.db._exec(self.sql, self.params, tx, qt);
 		};
+		
+		this.array = function(tx) {
+			return self.db._exec(self.sql, self.params, tx, self.db.cs.rowset);
+		};
+		this.one = function(tx) {
+			return self.db._exec(self.sql, self.params, tx, self.db.cs.row);
+		};
+		this.scalar = function(tx) {
+			return self.db._exec(self.sql, self.params, tx, self.db.cs.scalar);
+		};
+		this.nonQuery = function(tx) {
+			return self.db._exec(self.sql, self.params, tx, self.db.cs.nonQuery);
+		};
+		this.each = function(tx, cb) {
+			var d = self.array(tx);
+			if(cb) {
+				d.done(function(res) {
+					var len = res.length;
+					for(var i=0; i<len; i++) {
+						cb(res[i]);
+					}
+				});
+			}
+			return d;
+		};
+		
 
 	};
 
@@ -420,11 +505,11 @@ var utils = utils || {};
 		};
 		
 		this.first = function(tx) {
-			return self.find().first().run(tx);
+			return self.find().first().run(tx, self.db.cs.row);
 		};
 		
 		this.last = function(tx) {
-			return self.find().last().run(tx);
+			return self.find().last().run(tx, self.db.cs.row);
 		};
 		
 		this.insert = function(data) {
@@ -443,7 +528,7 @@ var utils = utils || {};
 			}			
 			
 			sql += values.join(", ") + ")";
-			return new websql.Query(sql, params, self);
+			return new websql.Query(sql, params, self, self.db.cs.nonQuery);
 		};
 		
 		this.update = function(fields, where){
@@ -461,7 +546,7 @@ var utils = utils || {};
 			}		
 			
 			var sql = utils.format("UPDATE {0} SET {1}", this.name, values.join(', '));
-			return new websql.Query(sql, params, self).where(where);
+			return new websql.Query(sql, params, self, self.db.cs.nonQuery).where(where);
 		};
 	};
 	
