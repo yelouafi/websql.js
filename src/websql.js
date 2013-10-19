@@ -21,10 +21,8 @@ var utils = utils || {};
 		
 		this.tableSQL =	"SELECT name FROM sqlite_master	WHERE type='table' ORDER BY name";
 			
-		this.modelsTableSchema = {  
-			columns: {
-				model: 'text'							
-			}
+		this.modelsTableSchema = {
+			model: 'text'				
 		};
 	
 		this.model = {
@@ -277,7 +275,7 @@ var utils = utils || {};
 		};
 		
 		this.createModelsTable = function() {
-			return self.createTable('_models', self.modelsTableSchema.columns, true /* if not exists */);
+			return self.createTable('_models', self.modelsTableSchema, true /* if not exists */);
 		};
 		
 		this.loadModel = function(tx) {
