@@ -467,7 +467,7 @@ var utils = utils || {};
 			return self.db._exec(self.sql, self.params, tx, qt);
 		};
 		
-		this.array = function(tx) {
+		this.all = function(tx) {
 			return self.db._exec(self.sql, self.params, tx, self.db.cs.rowset);
 		};
 		this.one = function(tx) {
@@ -480,7 +480,7 @@ var utils = utils || {};
 			return self.db._exec(self.sql, self.params, tx, self.db.cs.nonQuery);
 		};
 		this.each = function(tx, cb) {
-			var d = self.array(tx);
+			var d = self.all(tx);
 			if(cb) {
 				d.done(function(res) {
 					var len = res.length;
@@ -523,7 +523,7 @@ var utils = utils || {};
 		};
 		
 		this.all = function(tx) {
-			return new websql.Query("SELECT * FROM " + self.name, [], self).array(tx);
+			return new websql.Query("SELECT * FROM " + self.name, [], self).all(tx);
 		};
 		
 		this.insert = function(data) {
