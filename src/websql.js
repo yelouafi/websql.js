@@ -512,6 +512,18 @@ var utils = utils || {};
 			return self.find().last().run(tx, self.db.cs.row);
 		};
 		
+		this.each = function(tx) {
+			this.find().each(tx);
+		};
+  
+		this.count = function(where) {
+			return new websql.Query("SELECT COUNT(1) FROM " + self.name, [] ,self, self.db.cs.scalar).where(where);
+		};
+		
+		this.all = function(tx) {
+			return new websql.Query("SELECT * FROM " + self.name, [], self).array(tx);
+		};
+		
 		this.insert = function(data) {
 			if(!data) {
 				throw "insert should be called with data";//{ return new Query().raiseError("insert should be called with data"); }
@@ -548,6 +560,10 @@ var utils = utils || {};
 			var sql = utils.format("UPDATE {0} SET {1}", this.name, values.join(', '));
 			return new websql.Query(sql, params, self, self.db.cs.nonQuery).where(where);
 		};
+		
+		this.destroy = function() {
+            return new websql.Query("DELETE FROM " + self.name, [], self, self.db.cs.nonQuery).parseArgs(arguments);
+        };
 	};
 	
 } (jQuery) );

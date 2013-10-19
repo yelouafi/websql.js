@@ -1,6 +1,7 @@
-/*! Websql - v0.1.0 - 2013-10-18
+/*! Websql - v0.1.0 - 2013-10-19
 * https://github.com/yelouafi/websql.js
 * Copyright (c) 2013 Elouafi Yassine; Licensed MIT */
+var utils = utils || {};( function() {	var self = utils;		self.toArray = function(list) {		return Array.prototype.slice.call(list);	};		self.isUndef = function(obj) {		return obj === undefined;	};		self.isObject = function(A) {		return (typeof A === "object") && (A !== null);	};		self.isFunction = function(object) {		return !!(object && object.constructor && object.call && object.apply);	};		var types = ['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp'];	types.forEach( function(name) {		self['is' + name] = function(obj) {			return Object.prototype.toString.call(obj) === '[object ' + name + ']';		};	});		self.isBoolean = function(obj) {		return obj === true || obj === false || Object.prototype.toString.call(obj) === '[object Boolean]';	};	self.each = function(obj, cb) {				for(var k in obj) {			cb(obj[k], k);		}	};			utils.has = function(obj, key) {		return hasOwnProperty.call(obj, key);	};		self.format = function(str) {		var args = arguments;		return str.replace(/{(\d+)}/g, function(match, number) { 			var num = parseInt(number,10);			return isFinite(num) ? args[1+num] : match;		});	};	} () );
 var websql = websql || {};
 var utils = utils || {};
 
@@ -515,6 +516,18 @@ var utils = utils || {};
 			return self.find().last().run(tx, self.db.cs.row);
 		};
 		
+		this.each = function(tx) {
+			this.find().each(tx);
+		};
+  
+		this.count = function(where) {
+			return new websql.Query("SELECT COUNT(1) FROM " + self.name, [] ,self, self.db.cs.scalar).where(where);
+		};
+		
+		this.all = function(tx) {
+			return new websql.Query("SELECT * FROM " + self.name, [], self).array(tx);
+		};
+		
 		this.insert = function(data) {
 			if(!data) {
 				throw "insert should be called with data";//{ return new Query().raiseError("insert should be called with data"); }
@@ -551,6 +564,10 @@ var utils = utils || {};
 			var sql = utils.format("UPDATE {0} SET {1}", this.name, values.join(', '));
 			return new websql.Query(sql, params, self, self.db.cs.nonQuery).where(where);
 		};
+		
+		this.destroy = function() {
+            return new websql.Query("DELETE FROM " + self.name, [], self, self.db.cs.nonQuery).parseArgs(arguments);
+        };
 	};
 	
 } (jQuery) );
