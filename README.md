@@ -36,7 +36,7 @@ the Promise style is best suited for asynchronous operations. it allows to chain
 
 
 ## Getting Started
-Download the [production version][min] or the [development version][max].
+Download the [minified version][min] or the [development version][max].
 
 [min]: https://raw.github.com/yelouafi/websql.js/master/dist/websql.min.js
 [max]: https://raw.github.com/yelouafi/websql.js/master/dist/websql.js
