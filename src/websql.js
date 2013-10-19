@@ -455,6 +455,7 @@ var utils = utils || {};
 		
 		this.find = function() {
 			self.sql = "select * from " + self.table.name;
+			//self.queryType = self.db.cs.rowset;
 			return self.parseArgs(arguments);			
 		};
 		
@@ -475,7 +476,7 @@ var utils = utils || {};
 		this.nonQuery = function(tx) {
 			return self.db._exec(self.sql, self.params, tx, self.db.cs.nonQuery);
 		};
-		this.each = function(tx, cb) {
+		this.each = function(cb, tx) {
 			var d = self.all(tx);
 			if(cb) {
 				d.done(function(res) {
@@ -488,7 +489,6 @@ var utils = utils || {};
 			return d;
 		};
 		
-
 	};
 
 	
@@ -499,7 +499,7 @@ var utils = utils || {};
 		this.db = _db;
 		
 		this.find = function() {
-			return new websql.Query("SELECT * FROM " + this.name, [], this).parseArgs(arguments);
+			return new websql.Query("SELECT * FROM " + this.name, [], self, self.db.cs.rowset).parseArgs(arguments);
 		};
 		
 		this.first = function(tx) {
@@ -514,8 +514,8 @@ var utils = utils || {};
 			this.find().each(tx);
 		};
   
-		this.count = function(where) {
-			return new websql.Query("SELECT COUNT(1) FROM " + self.name, [] ,self, self.db.cs.scalar).where(where);
+		this.count = function(where, tx) {
+			return new websql.Query("SELECT COUNT(1) FROM " + self.name, [] ,self, self.db.cs.scalar).where(where).run(tx);
 		};
 		
 		this.all = function(tx) {

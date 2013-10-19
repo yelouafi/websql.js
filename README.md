@@ -81,7 +81,7 @@ we can also chain function calls using the [then][then] method.
 ```javascript
 db.exec('create table if not exists todos (id integer primary key  autoincrement, task text, duedate text)')
 	.then(function() {
-		return db.exec('insert into todos (task, duedate) values (?, ?)', "task-1", new Date(2013,11, 31))
+		return db.exec('insert into todos (task, duedate) values (?, ?)', ["task-1", new Date(2013,11, 31)])
 	})
 	.done(function(todoId) {
 		alert('remeber your newly created id : ' + todoId);
@@ -94,13 +94,13 @@ and stop the call chain as soon as one operation fail.
 ```javascript
 db.exec('create table if not exists todos (id integer primary key autoincrement, task text, duedate text)')
 	.then(function() {
-		return db.exec('insert into todos (task, duedate) values (?, ?)', ["task-1", new Date(2013,11, 31)])
+		return db.exec('insert into todos (task, duedate) values (?, ?)', ["task-1", new Date(2013,11, 31)]);
 	})
 	.then(function() {
 		return db.query('select * from todos');
 	})
 	.done(function(todoList) {
-		for(var i=0; i<todoList.length, i++) {
+		for(var i=0; i<todoList.length; i++) {
 			var todo = todoList[i];
 			alert("task " + todo.task + " to be done before " + todo.duedate);
 			// do something with todo
@@ -154,9 +154,6 @@ db.upgrade(model)
 	return db.todos.insert({ task: "learn something", duedate: new Date(2013,11, 30), completed: false}).run(tx);			
 }).then(function(insertId, tx) {		
 	console.log("Last insterted id : " + insertId); 
-})
-.done(function(todo, tx) {
-	console.log("first thing to do : " + todo.task);
 });
 ```
 (please note that at the moment only append migrations are supported, ie upgrade will inspect for newly added tables and columns and add them to the database. this is mainly because SQLite doesn't support the other operations such as columns modification or removal)
@@ -186,7 +183,7 @@ db.todos.destroy(1).run();
 db.todos.destroy({completed: true}).run();
 ```
 
-notice how in the samples we always managed to call the run method. that's because the above methods by themeselves dont actually send anything to the database but construct a Query object. you can run the Query object by invoking its run  method. additionnally you can invoke runQueries in the database object to run multiples queries
+notice how in the samples we always managed to call the run method. that's because the above methods by themselves don't actually send anything to the database but construct a Query object. you can run the Query object by invoking its run  method. additionally you can invoke runQueries in the database object to run multiples queries
 ```javascript
 // construct multiples queries and run them
 db.runQueries([
@@ -198,7 +195,8 @@ db.runQueries([
 
 ##Queries and finder methods
 
-In addition to the insert, update and destroy methods, the Table object also includes helpers to execute queries on the underlying table
+In addition to the insert, update and destroy methods, the Table object also includes helpers to execute queries on the underlying table.
+note the helper finders call the run method implicitly.
 ```javascript
 // get the first row, automatically call run
 db.todos.all()
@@ -225,14 +223,14 @@ db.todos.last()
 
 // get the number of rows
 db.todos.count()
-.then( funcion(numOfRows){   ....   } )
+.then( function(numOfRows){   ....   } )
 
 // or, get the number of completed todos
 db.todos.count({completed: true})
-.then( funcion(numOfcompleted){   ....   } )
+.then( function(numOfcompleted){   ....   } )
 ```
 
-in addition ther is the 'find' method that may ease select statements a lot
+in addition there is the 'find' method that may ease select statements a lot
 
 ```javascript
 // find todo with id = 1
