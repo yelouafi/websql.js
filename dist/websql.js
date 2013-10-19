@@ -542,7 +542,7 @@ var utils = utils || {};
 			}			
 			
 			sql += values.join(", ") + ")";
-			return new websql.Query(sql, params, self, self.db.cs.nonQuery);
+			return new websql.Query(sql, params, self, self.db.cs.insert);
 		};
 		
 		this.update = function(fields, where){
