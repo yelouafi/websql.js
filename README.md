@@ -53,12 +53,12 @@ In your web page:
 	// code will go here
 </script>
 ```
-first we create a database instance
+first thing pf course you need to create a database instance
 
 ```javascript
 var db = new websql.Db("db");
 ```
-to execute some query there is a basic exec method
+to send raw sql statements there is the basic exec method
 
 ```javascript
 db.exec('create table if not exists todos (num integer primary key, task text, duedate text)')
@@ -88,13 +88,13 @@ db.exec('create table if not exists todos (id integer primary key  autoincrement
 	})
 ```
 
-note the use of return statement inside then method. since exec return a promise, we can run multiples 'then' operations in sequence. the next operation will take its paramters from the previous operation ( db.exec('insert ...') passed the new inserted id to the done function argument )
-and stop the call chain as soon as one operation fail. 
+note the use of return statement inside then method. Since 'exec' return a promise, we can run multiples 'then' operations in sequence. The next operation will take its parameters from the previous operation ( in the example above db.exec('insert ...') passed the new inserted id to the done function argument ). 
+If an error occur in one of the chained operations, the execution get stopped and the 'fail' callback take the control.
 
 ```javascript
 db.exec('create table if not exists todos (id integer primary key autoincrement, task text, duedate text)')
 	.then(function() {
-		return db.exec('insert into todos (task, duedate) values (?, ?)', ["task-1", new Date(2013,11, 31)]);
+		return db.exec('insert into todos1 (task, duedate) values (?, ?)', ["task-1", new Date(2013,11, 31)]);
 	})
 	.then(function() {
 		return db.query('select * from todos');
@@ -106,21 +106,40 @@ db.exec('create table if not exists todos (id integer primary key autoincrement,
 			// do something with todo
 		}
 	})
+	.fail(function(err) {  
+		//oops have we typed todos1?
+		console.log(err.message);
+	});
 ```
 
-in the code above each exec operation is passed a parameter which is nothing but the value returned from the previous operation.
+This is standard JQuery api, refer to the [Deferred][deferred] documentation for more info.
 
-note in the db.exec("insert ...", ...) how we passed an array of values to be used as parameters for the insert sql statement. this is the same as the raw websql execute method. but actually db.exec do some extra processing, for example we passed a date parameter but SQlite has no notion of the dates types, db.exec will convert all dates parameters to ISO strings before sending them to the database. when retrieving rows from database, date ISO strings will be parsed back to dates objects.
+Note also in the following code
+```javascript
+db.exec('insert into todos1 (task, duedate) values (?, ?)', ["task-1", new Date(2013,11, 31)]);
+```
+how we passed an array of values to be used as parameters for the insert sql statement. this is the same as in the raw websql execute method. 
+(actually db.exec do some extra processing, for example we passed a date parameter but SQlite has no notion of the dates types, db.exec will convert all dates parameters to ISO strings before sending them to the database. when retrieving rows from database, date ISO strings will be parsed back to dates objects).
 
-we also used the db.query method, it does the same thing as db.exec but here we inform websql explicitly that we are expecting a list of rows. the library will process the raw SQLResultSet object and extract an array of objects representing the database rows.
+we also used the db.query method, it does the same thing as db.exec but here we inform websql explicitly that we are expecting a list of rows. Instead of returning a raw SQLResultSet object, websql will extract an array of objects representing the database rows and passes them ready to your callback.
 
-by default, db.exec will try already to infer the expected result type by inspecting the sql statement:
+```javascript
+db.query('select * from todos')
+.done(function(todoList) {
+	for(var i=0; i<todoList.length; i++) {
+		var todo = todoList[i];
+		alert("task " + todo.task + " to be done before " + todo.duedate);
+	}
+});
+```
 
-SELECT statements are treated to be returning a list of rows, so it will return an array of objects
-SELECT with clause LIMIT(1) will by default return a single object
-INSERT will return - if any- the new generated id
-UPDATE and DELETE will return the number of affected rows
-anything else will return the raw SQLResultSet object (returned by the raw execute call from the browser)
+By default, 'db.exec' will try to infer the expected result type by inspecting the sql statement:
+
+SELECT statements are treated to be returning a list of rows, so it will return an array of objects.
+SELECT with clause LIMIT(1) will by default return a single object.
+INSERT will return - if any- the new generated id.
+UPDATE and DELETE will return the number of affected rows.
+anything else will return the raw SQLResultSet object (returned by the raw execute call from the browser).
 
 while db.exec will try its best to figure out the expected type, it's safer to use the explicit methods below as they make the code intention more apparent
 
@@ -158,8 +177,18 @@ db.upgrade(model)
 ```
 (please note that at the moment only append migrations are supported, ie upgrade will inspect for newly added tables and columns and add them to the database. this is mainly because SQLite doesn't support the other operations such as columns modification or removal)
 
+If you don't want the ad-hoc 'upgrade' facility you can use the createTable and createColumn method
+
+```javascript
+// generate a create table statement and run it
+db.createTable('todos', { task: 'text', duedate: 'date'}, true /* don't create if the table already exists*/).run();
+
+// generate an alter table add column statement and run it
+db.createColumn('todos', 'completed', { type: 'boolean'});
+```
+
 ## Table helper methods : insert, update, delete
-noted the following instruction in the last example ?
+noted the following instruction in a precedent example ?
 
 ```javascript
 db.todos.insert({ task: "learn something", duedate: new Date(2013,11, 30), completed: false}).run();
@@ -196,7 +225,7 @@ db.runQueries([
 ##Queries and finder methods
 
 In addition to the insert, update and destroy methods, the Table object also includes helpers to execute queries on the underlying table.
-note the helper finders call the run method implicitly.
+note that with helper finders you don't have to call run
 ```javascript
 // get the first row, automatically call run
 db.todos.all()
