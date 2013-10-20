@@ -154,7 +154,7 @@ db.execNonQuery(...)	// use when you want the number of affected rows such as in
 
 Instead of using the basic exec method to issue DDL statements, websql.js includes basic support for managing append only migrations.
 
-the most util is the db.upgrade method. you passes it a modele definition as a JSON object and it will upgrade your database with the new passed 
+the most utile is the db.upgrade method. you passes it a JSON definition of your and it upgrade the database with it.
 
 ```javascript
 var model = { 
@@ -203,7 +203,7 @@ if you want to update an object on the database use db.update
 db.todos.update({duedate: new Date(2014,1, 30)}, todoId).run();
 ```
 
-db.destroy send a delete statement. for example, the following deletes all todos
+db.destroy send a delete statement
 ```javascript
 //delete a todo with id = 1
 db.todos.destroy(1).run();
@@ -287,26 +287,26 @@ db.todos.find({completed: true}, ['task', 'duedate']).order('duedate', true)
 
 ## Transaction management
 
-In all the above examples we have skipped over how to handle transctions.
+In all the above examples we have skipped over how to handle transactions.
 
 basically if you call db.exec, or any of its variants (query, scalar ...) you can either
 
-1- just specify the sql and the paramters arguments, websql.js will automatically create a new transaction and uses it.
+1- just specify the sql and optionally the parameters arguments, websql will automatically create a new transaction and uses it.
 example
 ```javascript
 db.exec('insert into todos (task) values(?)', ['some task']) // no explicit transaction parameter
 ```
 
-2- Additionnally, if you have an existing transaction object, you can passes it to the method
+2- Additionally, if you have an existing transaction object, you can passes it to the method
 example
 ```javascript
-db.exec('insert into todos (task) values(?)', ['some task'], tx) // tx is an existing transction
+db.exec('insert into todos (task) values(?)', ['some task'], tx) // tx is an existing transaction
 ```
 
 the some goes for the Query object, you can call the 'run' method with or without an explicit transaction
-An important use case to mention is when you are chaining multiples queries together, generally all the queries must share the same transaction. so they will succeed or fail all together. In such case you can the second parameter passed down the promise chain.
+An important use case to mention is when you are chaining multiples queries together, generally all the queries must share the same transaction. so they will succeed or fail all together. In such case you can use the second parameter passed down the promise chain.
 
-For example suppose you have tow tables: contacts and todos, and each contact is saved with many associated todos. normally you want the tow insert operations to occur in the same transctions.
+For example suppose you have tow tables: contacts and todos, and each contact is saved with many associated todos. normally you want the tow insert operations to occur in the same transactions.
 ```javascript
 var me = {name: 'elouafi yassine'};
 var myTodos = [
@@ -315,14 +315,10 @@ var myTodos = [
 	];
 db.contacts.insert(me).run()	// transaction implicitly created by the library
 	.then(funcion(contactId, tx /* original transaction passed down the chain */) {
-		var todosInsert = []; // will hold insert queries
 		for(var i=0; i<myTodos.length; i++) {
 			myTodos[i].contactId = contactId;
-			todosInsert.push(db.todos.insert(myTodos[i]));
+			db.todos.insert(myTodos[i]).run(tx);
 		}
-		return db.runQueries(todosInsert, tx);
-		// if we had a single query we would do query.run(tx);
-		
 	});
 ```
 
