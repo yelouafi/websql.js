@@ -135,11 +135,11 @@ db.query('select * from todos')
 
 By default, 'db.exec' will try to infer the expected result type by inspecting the sql statement:
 
-SELECT statements are treated to be returning a list of rows, so it will return an array of objects.
-SELECT with clause LIMIT(1) will by default return a single object.
-INSERT will return - if any- the new generated id.
-UPDATE and DELETE will return the number of affected rows.
-anything else will return the raw SQLResultSet object (returned by the raw execute call from the browser).
+- SELECT statements are treated to be returning a list of rows, so it will return an array of objects.
+- SELECT with clause LIMIT(1) will by default return a single object.
+- INSERT will return - if any- the new generated id.
+- UPDATE and DELETE will return the number of affected rows.
+- anything else will return the raw SQLResultSet object (returned by the raw execute call from the browser).
 
 while db.exec will try its best to figure out the expected type, it's safer to use the explicit methods below as they make the code intention more apparent
 
